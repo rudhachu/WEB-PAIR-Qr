@@ -1,26 +1,8 @@
 const express = require('express');
 const fs = require('fs-extra');
 const { exec } = require("child_process");
-let router = express.Router();
 const pino = require("pino");
 const { Boom } = require("@hapi/boom");
-const MESSAGE = process.env.MESSAGE || `
-*SESSION GENERATED SUCCESSFULY* ✅
-
-*Gɪᴠᴇ ᴀ ꜱᴛᴀʀ ᴛᴏ ʀᴇᴘᴏ ꜰᴏʀ ᴄᴏᴜʀᴀɢᴇ* 🌟
-https://github.com/GuhailTechInfo/ULTRA-MD
-
-*Sᴜᴘᴘᴏʀᴛ Gʀᴏᴜᴘ ꜰᴏʀ ϙᴜᴇʀʏ* 💭
-https://t.me/GlobalBotInc
-https://whatsapp.com/channel/0029VagJIAr3bbVBCpEkAM07
-
-
-*Yᴏᴜ-ᴛᴜʙᴇ ᴛᴜᴛᴏʀɪᴀʟꜱ* 🪄 
-https://youtube.com/GlobalTechInfo
-
-*ULTRA-MD--WHATTSAPP-BOT* 🥀
-`;
-
 const { upload } = require('./mega');
 const {
     default: makeWASocket,
@@ -31,113 +13,128 @@ const {
     DisconnectReason
 } = require("@whiskeysockets/baileys");
 
+const router = express.Router();
+
+const MESSAGE = process.env.MESSAGE || `
+*RUDHRA BOT SESSION ID*
+
+> ʀᴜᴅʜʀᴀ-ʙᴏᴛ
+`;
+
 // Ensure the directory is empty when the app starts
-if (fs.existsSync('./auth_info_baileys')) {
-    fs.emptyDirSync(__dirname + '/auth_info_baileys');
+const AUTH_DIR = './auth_info_baileys';
+if (fs.existsSync(AUTH_DIR)) {
+    fs.emptyDirSync(AUTH_DIR);
 }
 
-router.get('/', async (req, res) => {
-    let num = req.query.number;
+// Helper: Generate Random Mega ID
+function randomMegaId(length = 6, numberLength = 4) {
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    const randomChars = Array.from({ length }, () => 
+        characters.charAt(Math.floor(Math.random() * characters.length))
+    ).join('');
+    const randomNumber = Math.floor(Math.random() * Math.pow(10, numberLength));
+    return `${randomChars}${randomNumber}`;
+}
 
-    async function SUHAIL() {
-        const { state, saveCreds } = await useMultiFileAuthState(`./auth_info_baileys`);
-        try {
-            let Smd = makeWASocket({
-                auth: {
-                    creds: state.creds,
-                    keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "fatal" }).child({ level: "fatal" })),
-                },
-                printQRInTerminal: false,
-                logger: pino({ level: "fatal" }).child({ level: "fatal" }),
-                browser: Browsers.macOS("Safari"),
-            });
+// Helper: Restart Application
+function restartService() {
+    console.log("Restarting service...");
+    exec('pm2 restart rudhra-id');
+}
 
-            if (!Smd.authState.creds.registered) {
-                await delay(1500);
-                num = num.replace(/[^0-9]/g, '');
-                const code = await Smd.requestPairingCode(num);
-                if (!res.headersSent) {
-                    await res.send({ code });
-                }
-            }
+// Core Function: Handle WhatsApp Pairing and Session Management
+async function getPair(number, res) {
+    const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
 
-            Smd.ev.on('creds.update', saveCreds);
-            Smd.ev.on("connection.update", async (s) => {
-                const { connection, lastDisconnect } = s;
+    try {
+        const session = makeWASocket({
+            auth: {
+                creds: state.creds,
+                keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "fatal" })),
+            },
+            printQRInTerminal: false,
+            logger: pino({ level: "fatal" }),
+            browser: Browsers.macOS("Safari"),
+        });
 
-                if (connection === "open") {
-                    try {
-                        await delay(10000);
-                        if (fs.existsSync('./auth_info_baileys/creds.json'));
-
-                        const auth_path = './auth_info_baileys/';
-                        let user = Smd.user.id;
-
-                        // Define randomMegaId function to generate random IDs
-                        function randomMegaId(length = 6, numberLength = 4) {
-                            const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-                            let result = '';
-                            for (let i = 0; i < length; i++) {
-                                result += characters.charAt(Math.floor(Math.random() * characters.length));
-                            }
-                            const number = Math.floor(Math.random() * Math.pow(10, numberLength));
-                            return `${result}${number}`;
-                        }
-
-                        // Upload credentials to Mega
-                        const mega_url = await upload(fs.createReadStream(auth_path + 'creds.json'), `${randomMegaId()}.json`);
-                        const Id_session = mega_url.replace('https://mega.nz/file/', '');
-
-                        const Scan_Id = Id_session;
-
-                        let msgsss = await Smd.sendMessage(user, { text: Scan_Id });
-                        await Smd.sendMessage(user, { text: MESSAGE }, { quoted: msgsss });
-                        await delay(1000);
-                        try { await fs.emptyDirSync(__dirname + '/auth_info_baileys'); } catch (e) {}
-
-                    } catch (e) {
-                        console.log("Error during file upload or message send: ", e);
-                    }
-
-                    await delay(100);
-                    await fs.emptyDirSync(__dirname + '/auth_info_baileys');
-                }
-
-                // Handle connection closures
-                if (connection === "close") {
-                    let reason = new Boom(lastDisconnect?.error)?.output.statusCode;
-                    if (reason === DisconnectReason.connectionClosed) {
-                        console.log("Connection closed!");
-                    } else if (reason === DisconnectReason.connectionLost) {
-                        console.log("Connection Lost from Server!");
-                    } else if (reason === DisconnectReason.restartRequired) {
-                        console.log("Restart Required, Restarting...");
-                        SUHAIL().catch(err => console.log(err));
-                    } else if (reason === DisconnectReason.timedOut) {
-                        console.log("Connection TimedOut!");
-                    } else {
-                        console.log('Connection closed with bot. Please run again.');
-                        console.log(reason);
-                        await delay(5000);
-                        exec('pm2 restart qasim');
-                    }
-                }
-            });
-
-        } catch (err) {
-            console.log("Error in SUHAIL function: ", err);
-            exec('pm2 restart qasim');
-            console.log("Service restarted due to error");
-            SUHAIL();
-            await fs.emptyDirSync(__dirname + '/auth_info_baileys');
-            if (!res.headersSent) {
-                await res.send({ code: "Try After Few Minutes" });
-            }
+        // If the session is not registered, generate and return a pairing code
+        if (!session.authState.creds.registered) {
+            await delay(1500);
+            number = number.replace(/[^0-9]/g, '');
+            const code = await session.requestPairingCode(number);
+            if (!res.headersSent) res.send({ code });
         }
-    }
 
-    await SUHAIL();
+        session.ev.on('creds.update', saveCreds);
+
+        // Handle connection updates
+        session.ev.on("connection.update", async ({ connection, lastDisconnect }) => {
+            if (connection === "open") {
+                await handleSuccessfulConnection(session);
+            } else if (connection === "close") {
+                await handleConnectionClose(lastDisconnect, res);
+            }
+        });
+    } catch (err) {
+        console.error("Error in getPair function: ", err);
+        restartService();
+        if (!res.headersSent) res.send({ code: "Try Again Later" });
+    }
+}
+
+// Handle a successful connection
+async function handleSuccessfulConnection(session) {
+    try {
+        await delay(10000);
+
+        if (fs.existsSync(`${AUTH_DIR}/creds.json`)) {
+            const megaURL = await upload(fs.createReadStream(`${AUTH_DIR}/creds.json`), `${randomMegaId()}.json`);
+            const scanId = megaURL.replace('https://mega.nz/file/', '');
+
+            const user = session.user.id;
+            const msg = await session.sendMessage(user, { text: scanId });
+            await session.sendMessage(user, { text: MESSAGE }, { quoted: msg });
+
+            await delay(1000);
+            fs.emptyDirSync(AUTH_DIR);
+        }
+    } catch (err) {
+        console.error("Error during upload or message send: ", err);
+    }
+}
+
+// Handle connection closure and errors
+async function handleConnectionClose(lastDisconnect, res) {
+    const reason = new Boom(lastDisconnect?.error)?.output.statusCode;
+
+    switch (reason) {
+        case DisconnectReason.connectionClosed:
+            console.log("Connection closed!");
+            break;
+        case DisconnectReason.connectionLost:
+            console.log("Connection lost from server!");
+            break;
+        case DisconnectReason.restartRequired:
+            console.log("Restart required, restarting...");
+            restartService();
+            break;
+        case DisconnectReason.timedOut:
+            console.log("Connection timed out!");
+            break;
+        default:
+            console.log("Unexpected disconnect reason:", reason);
+            restartService();
+            break;
+    }
+}
+
+// Route: Handle WhatsApp Pairing
+router.get('/', async (req, res) => {
+    const number = req.query.number;
+    if (!number) return res.status(400).send({ error: "Number is required" });
+
+    await getPair(number, res);
 });
 
 module.exports = router;
-                    
