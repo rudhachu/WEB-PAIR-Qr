@@ -4,6 +4,10 @@
   "type": "commonjs",
   "description": "A multi-functional WhatsApp bot Web QR Scanner.",
   "main": "index.js",
+  "engines" : { 
+    "npm" : ">=9.7.2",
+    "node" : ">=20.0.0"
+    },
   "scripts": {
     "start": "pm2 start index.js --deep-monitoring --attach --name qasim",
     "stop": "pm2 stop qasim",
