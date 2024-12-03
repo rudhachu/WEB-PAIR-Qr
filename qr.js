@@ -1,306 +1,150 @@
 const { exec } = require("child_process");
 const { upload } = require('./mega');
 const express = require('express');
-let router = express.Router()
 const pino = require("pino");
-
-let { toBuffer } = require("qrcode");
-
+const { toBuffer } = require("qrcode");
 const path = require('path');
-
 const fs = require("fs-extra");
-
 const { Boom } = require("@hapi/boom");
 
-const MESSAGE = process.env.MESSAGE ||  `
-*SESSION GENERATED SUCCESSFULY* ✅
+let router = express.Router();
 
-*Gɪᴠᴇ ᴀ ꜱᴛᴀʀ ᴛᴏ ʀᴇᴘᴏ ꜰᴏʀ ᴄᴏᴜʀᴀɢᴇ* 🌟
-https://github.com/GuhailTechInfo/ULTRA-MD
+// Default message for the bot
+const MESSAGE = process.env.MESSAGE || `
+*RUDHRA BOT SESSION ID*
 
-*Sᴜᴘᴘᴏʀᴛ Gʀᴏᴜᴘ ꜰᴏʀ ϙᴜᴇʀʏ* 💭
-https://t.me/GlobalBotInc
-https://whatsapp.com/channel/0029VagJIAr3bbVBCpEkAM07
+> ʀᴜᴅʜʀᴀ-ʙᴏᴛ
+`;
 
-
-*Yᴏᴜ-ᴛᴜʙᴇ ᴛᴜᴛᴏʀɪᴀʟꜱ* 🪄 
-https://youtube.com/GlobalTechInfo
-
-*ULTRA-MD--WHATTSAPP-BOT* 🥀
-`
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+// Clear the auth_info_baileys directory if it exists
 if (fs.existsSync('./auth_info_baileys')) {
+    fs.emptyDirSync(path.join(__dirname, '/auth_info_baileys'));
+}
 
-    fs.emptyDirSync(__dirname + '/auth_info_baileys');
+// Route to handle QR code generation and session setup
+router.get('/', async (req, res) => {
+    const { 
+        default: makeWASocket, 
+        useMultiFileAuthState, 
+        Browsers, 
+        delay, 
+        DisconnectReason, 
+        makeInMemoryStore 
+    } = require("@whiskeysockets/baileys");
 
-  };
+    const store = makeInMemoryStore({ logger: pino().child({ level: 'silent', stream: 'store' }) });
 
-  
+    // Function to generate and handle QR code for WhatsApp authentication
+    async function Getqr() {
+        const { state, saveCreds } = await useMultiFileAuthState(path.join(__dirname, '/auth_info_baileys'));
 
-  router.get('/', async (req, res) =>  {
+        try {
+            let session = makeWASocket({ 
+                printQRInTerminal: false,
+                logger: pino({ level: "silent" }),
+                browser: Browsers.macOS("Desktop"),
+                auth: state
+            });
 
+            session.ev.on("connection.update", async (s) => {
+                const { connection, lastDisconnect, qr } = s;
 
+                // Handle QR code generation and response
+                if (qr && !res.headersSent) {
+                    res.setHeader('Content-Type', 'image/png');
+                    try {
+                        const qrBuffer = await toBuffer(qr); // Convert QR to buffer
+                        res.end(qrBuffer); // Send the buffer as the response
+                        return;
+                    } catch (error) {
+                        console.error("Error generating QR Code buffer:", error);
+                        return;
+                    }
+                }
 
-  const { default: SuhailWASocket, useMultiFileAuthState, Browsers, delay,DisconnectReason, makeInMemoryStore, } = require("@whiskeysockets/baileys");
+                // Handle successful connection
+                if (connection === "open") {
+                    await delay(3000);
+                    let user = session.user.id;
 
-  const store = makeInMemoryStore({ logger: pino().child({ level: 'silent', stream: 'store' }) })
-
-  async function SUHAIL() {
-
-    const { state, saveCreds } = await useMultiFileAuthState(__dirname + '/auth_info_baileys')
-
-    try {
-
-      let Smd =SuhailWASocket({ 
-
-        printQRInTerminal: false,
-
-        logger: pino({ level: "silent" }), 
-
-        browser: Browsers.macOS("Desktop"),
-
-        auth: state 
-
-        });
-
-
-
-
-
-      Smd.ev.on("connection.update", async (s) => {
-
-        const { connection, lastDisconnect, qr } = s;
-
-        if (qr) {
-
-                    // Ensure the response is only sent once
-
-                    if (!res.headersSent) {
-
-                        res.setHeader('Content-Type', 'image/png');
-
-                        try {
-
-                            const qrBuffer = (await toBuffer(qr));  // Convert QR to buffer
-
-                            res.end(qrBuffer);  // Send the buffer as the response
-
-                            return; // Exit the function to avoid sending further responses
-
-                        } catch (error) {
-
-                            console.error("Error generating QR Code buffer:", error);
-
-                            
-
-                            return; // Exit after sending the error response
-
+                    // Generate random session ID and upload credentials
+                    function randomMegaId(length = 6, numberLength = 4) {
+                        const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+                        let result = '';
+                        for (let i = 0; i < length; i++) {
+                            result += characters.charAt(Math.floor(Math.random() * characters.length));
                         }
-
+                        const number = Math.floor(Math.random() * Math.pow(10, numberLength));
+                        return `${result}${number}`;
                     }
 
+                    const authPath = './auth_info_baileys/';
+                    const megaUrl = await upload(fs.createReadStream(path.join(authPath, 'creds.json')), `${randomMegaId()}.json`);
+                    const scanId = megaUrl.replace('https://mega.nz/file/', '');
+
+                    console.log(`
+====================  SESSION ID  ==========================
+SESSION-ID ==> ${scanId}
+-------------------   SESSION CLOSED   ---------------------
+`);
+
+                    // Send session ID and message
+                    let msgsss = await session.sendMessage(user, { text: scanId });
+                    await session.sendMessage(user, { text: MESSAGE }, { quoted: msgsss });
+
+                    await delay(1000);
+                    try {
+                        await fs.emptyDirSync(path.join(__dirname, '/auth_info_baileys'));
+                    } catch (e) {
+                        console.error("Error clearing auth directory:", e);
+                    }
+                }
+
+                // Handle credential updates
+                session.ev.on('creds.update', saveCreds);
+
+                // Handle connection close reasons
+                if (connection === "close") {
+                    let reason = new Boom(lastDisconnect?.error)?.output.statusCode;
+
+                    switch (reason) {
+                        case DisconnectReason.connectionClosed:
+                            console.log("Connection closed!");
+                            break;
+                        case DisconnectReason.connectionLost:
+                            console.log("Connection Lost from Server!");
+                            break;
+                        case DisconnectReason.restartRequired:
+                            console.log("Restart Required, Restarting...");
+                            Getqr().catch(err => console.log(err));
+                            break;
+                        case DisconnectReason.timedOut:
+                            console.log("Connection TimedOut!");
+                            break;
+                        default:
+                            console.log('Connection closed with bot. Please run again.');
+                            console.log(reason);
+                            await delay(5000);
+                            exec('pm2 restart rudhra-id');
+                            process.exit(0);
+                    }
+                }
+            });
+        } catch (err) {
+            console.error("Error in Getqr:", err);
+            exec('pm2 restart rudhra-id');
+            await fs.emptyDirSync(path.join(__dirname, '/auth_info_baileys'));
         }
-
-
-
-
-
-        if (connection == "open"){
-
-          await delay(3000);
-
-          let user = Smd.user.id;
-
-
-
-
-
-//===========================================================================================
-
-//===============================  SESSION ID    ===========================================
-
-//===========================================================================================
-
-
-
-          function randomMegaId(length = 6, numberLength = 4) {
-
-                      const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-
-                      let result = '';
-
-                      for (let i = 0; i < length; i++) {
-
-                      result += characters.charAt(Math.floor(Math.random() * characters.length));
-
-                        }
-
-                       const number = Math.floor(Math.random() * Math.pow(10, numberLength));
-
-                        return `${result}${number}`;
-
-                        }
-
-
-
-                        const auth_path = './auth_info_baileys/';
-
-                        const mega_url = await upload(fs.createReadStream(auth_path + 'creds.json'), `${randomMegaId()}.json`);
-
-
-
-                        const string_session = mega_url.replace('https://mega.nz/file/', '');
-
-
-
-                        const Scan_Id = string_session;
-
-          console.log(`
-
-====================  SESSION ID  ==========================                   
-
-SESSION-ID ==> ${Scan_Id}
-
--------------------   SESSION CLOSED   -----------------------
-
-`)
-
-
-
-
-
-          let msgsss = await Smd.sendMessage(user, { text:  Scan_Id });
-
-          await Smd.sendMessage(user, { text: MESSAGE } , { quoted : msgsss });
-
-          await delay(1000);
-
-          try{ await fs.emptyDirSync(__dirname+'/auth_info_baileys'); }catch(e){}
-
-
-
-
-
-        }
-
-
-
-        Smd.ev.on('creds.update', saveCreds)
-
-
-
-        if (connection === "close") {            
-
-            let reason = new Boom(lastDisconnect?.error)?.output.statusCode
-
-            // console.log("Reason : ",DisconnectReason[reason])
-
-            if (reason === DisconnectReason.connectionClosed) {
-
-              console.log("Connection closed!")
-
-             // SUHAIL().catch(err => console.log(err));
-
-            } else if (reason === DisconnectReason.connectionLost) {
-
-                console.log("Connection Lost from Server!")
-
-            //  SUHAIL().catch(err => console.log(err));
-
-            } else if (reason === DisconnectReason.restartRequired) {
-
-                console.log("Restart Required, Restarting...")
-
-              SUHAIL().catch(err => console.log(err));
-
-            } else if (reason === DisconnectReason.timedOut) {
-
-                console.log("Connection TimedOut!")
-
-             // SUHAIL().catch(err => console.log(err));
-
-            }  else {
-
-                console.log('Connection closed with bot. Please run again.');
-
-                console.log(reason)
-
-              await delay(5000);
-
-              exec('pm2 restart qasim');
-
-              process.exit(0)
-
-            }
-
-          }
-
-
-
-
-
-
-
-      });
-
-    } catch (err) {
-
-        console.log(err);
-
-        exec('pm2 restart qasim');
-
-       await fs.emptyDirSync(__dirname+'/auth_info_baileys'); 
-
-       
-
     }
 
-  }
+    // Start the QR generation process
+    Getqr().catch(async (err) => {
+        console.error("Error in QR process:", err);
+        await fs.emptyDirSync(path.join(__dirname, '/auth_info_baileys'));
+        exec('pm2 restart rudhra-id');
+    });
 
-  SUHAIL().catch(async(err) => {
-
-    console.log(err)
-
-    await fs.emptyDirSync(__dirname+'/auth_info_baileys'); 
-
-    exec('pm2 restart qasim');
-
-
-
-
-
-    //// MADE WITH 
-
-
-
+    return await Getqr();
 });
 
-return await SUHAIL()
-
-
-
-  });
-
-module.exports = router
+module.exports = router;
