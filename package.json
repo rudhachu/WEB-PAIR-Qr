@@ -1,5 +1,5 @@
 {
-  "name": "web-qr",
+  "name": "rudhra-web",
   "version": "1.0.0",
   "type": "commonjs",
   "description": "A multi-functional WhatsApp bot Web QR Scanner.",
@@ -9,9 +9,9 @@
     "node" : ">=20.0.0"
     },
   "scripts": {
-    "start": "pm2 start index.js --deep-monitoring --attach --name qasim",
-    "stop": "pm2 stop qasim",
-    "restart": "pm2 restart qasim",
+    "start": "pm2 start index.js --deep-monitoring --attach --name rudhra-id",
+    "stop": "pm2 stop rudhra-id",
+    "restart": "pm2 restart rudhra-id",
     "dev": "nodemon index.js"
   },
   "keywords": [
