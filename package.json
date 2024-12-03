@@ -12,7 +12,7 @@
     "start": "pm2 start index.js --deep-monitoring --attach --name rudhra-id",
     "stop": "pm2 stop rudhra-id",
     "restart": "pm2 restart rudhra-id",
-    "dev": "nodemon index.js"
+    "dev": "node index.js"
   },
   "keywords": [
     "baileysQr", "MdLogin", "rudhra-bot", "whatsapp-bot", "BotWhatsapp",
